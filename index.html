@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Wings of the Promise</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,500&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1B2440;--gold:#F2C94C;--olive:#7A8B4F;--cream:#FDF6E3;--rose:#E8A87C}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'Nunito',system-ui,sans-serif;user-select:none}
+  #stage{position:fixed;inset:0}
+  canvas{display:block;width:100%;height:100%}
+  .ui{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;color:var(--cream);z-index:5}
+  .panel{pointer-events:auto;padding:26px 30px;max-width:420px;width:90%;max-height:88vh;overflow-y:auto;
+    background:rgba(20,28,54,.78);backdrop-filter:blur(8px);border:1px solid rgba(242,201,76,.35);
+    border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  h1{font-family:'Cormorant Garamond',Georgia,serif;font-weight:700;font-size:clamp(30px,7.5vw,42px);
+    line-height:1.05;color:var(--gold);text-shadow:0 2px 18px rgba(242,201,76,.35)}
+  h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:700;font-size:26px;color:var(--gold);margin-bottom:10px}
+  .sub{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:16px;color:var(--rose);margin:8px 0 16px}
+  .how{font-size:13.5px;line-height:1.6;color:#cfd6e6;text-align:left;margin-bottom:16px}
+  .how b{color:var(--cream)} .how .g{color:var(--gold)}
+  button{pointer-events:auto;font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;letter-spacing:.4px;
+    color:#2a2205;background:linear-gradient(180deg,#FFE08A,#F2C94C);border:none;border-radius:999px;
+    padding:13px 34px;cursor:pointer;box-shadow:0 5px 0 #B98F1E,0 12px 26px rgba(0,0,0,.35);transition:transform .08s;margin:4px}
+  button:active{transform:translateY(3px);box-shadow:0 2px 0 #B98F1E}
+  button.ghost{background:transparent;color:var(--cream);border:1.5px solid rgba(253,246,227,.4);box-shadow:none;font-size:14px;padding:10px 24px}
+  button.ghost:active{transform:translateY(1px)}
+  .diffs{display:flex;flex-direction:column;gap:10px;margin:14px 0 18px}
+  .diff{pointer-events:auto;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;
+    border:1.5px solid rgba(253,246,227,.22);border-radius:14px;padding:12px 14px;background:rgba(255,255,255,.04);transition:border-color .15s,background .15s}
+  .diff.sel{border-color:var(--gold);background:rgba(242,201,76,.12)}
+  .diff .dot{width:34px;height:34px;border-radius:50%;flex:none;border:2px solid rgba(255,255,255,.35)}
+  .diff .t{font-weight:800;font-size:15px;color:var(--cream)}
+  .diff .d{font-size:11.5px;color:#aab3c8;line-height:1.35}
+  .diff .b{margin-left:auto;text-align:right;font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:var(--gold)}
+  .diff .b small{display:block;font-family:'Nunito';font-size:9px;letter-spacing:1.5px;color:#aab3c8;font-weight:800}
+  .row{display:flex;justify-content:center;flex-wrap:wrap;gap:6px}
+  .score-hud{position:fixed;top:calc(12px + env(safe-area-inset-top));left:0;right:0;text-align:center;pointer-events:none;z-index:4}
+  .score-hud .big{font-family:'Cormorant Garamond',Georgia,serif;font-weight:700;font-size:54px;color:var(--cream);text-shadow:0 3px 14px rgba(0,0,0,.45);line-height:1}
+  .score-hud .streak{font-size:12px;font-weight:800;letter-spacing:2px;color:var(--gold);text-transform:uppercase;opacity:0;transition:opacity .3s}
+  .score-hud .chapter{font-size:10px;font-weight:800;letter-spacing:2.5px;color:#cfd6e6;text-transform:uppercase;margin-top:2px}
+  #pauseBtn{position:fixed;top:calc(12px + env(safe-area-inset-top));right:14px;z-index:6;width:44px;height:44px;border-radius:50%;
+    padding:0;font-size:17px;background:rgba(20,28,54,.6);color:var(--cream);box-shadow:none;border:1.5px solid rgba(253,246,227,.35)}
+  .verse{position:fixed;left:50%;top:21%;transform:translate(-50%,-8px);pointer-events:none;text-align:center;opacity:0;transition:opacity .5s,transform .5s;max-width:86%;z-index:4}
+  .verse.show{opacity:1;transform:translate(-50%,0)}
+  .verse .line{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:clamp(17px,4.6vw,22px);color:var(--cream);text-shadow:0 2px 12px rgba(0,0,0,.55)}
+  .verse .ref{font-size:11px;font-weight:800;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-top:6px}
+  .stats{display:flex;gap:22px;justify-content:center;margin:6px 0 14px;flex-wrap:wrap}
+  .stats div{display:flex;flex-direction:column}
+  .stats .n{font-family:'Cormorant Garamond',Georgia,serif;font-size:38px;font-weight:700;color:var(--gold);line-height:1}
+  .stats .l{font-size:10px;font-weight:800;letter-spacing:2px;color:#aab3c8;text-transform:uppercase;margin-top:4px}
+  .medal{font-size:44px;line-height:1;margin-bottom:2px}
+  .medal-l{font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+  .vlist{text-align:left;font-size:13px;line-height:1.5;margin-bottom:14px}
+  .vlist .v{padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.05);border-radius:0 8px 8px 0;margin-bottom:8px}
+  .vlist .v.lock{border-left-color:rgba(255,255,255,.15);color:#7d8598;font-style:italic}
+  .vlist .r{font-size:10px;font-weight:800;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+  .vlist .v.lock .r{color:#7d8598}
+  .count{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:7;pointer-events:none}
+  .count span{font-family:'Cormorant Garamond',serif;font-size:110px;font-weight:700;color:var(--gold);text-shadow:0 4px 30px rgba(0,0,0,.6)}
+  .foot{font-size:10.5px;color:#8a93a8;margin-top:10px}
+  .hidden{display:none!important}
+  @media (prefers-reduced-motion: reduce){.verse{transition:none}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+
+<div class="score-hud hidden" id="hud">
+  <div class="big" id="score">0</div>
+  <div class="chapter" id="chapterLbl"></div>
+  <div class="streak" id="streak"></div>
+</div>
+<button id="pauseBtn" class="hidden">❚❚</button>
+<div class="verse" id="verse"><div class="line" id="verseLine"></div><div class="ref" id="verseRef"></div></div>
+<div class="count hidden" id="count"><span id="countNum">3</span></div>
+
+<!-- MAIN MENU -->
+<div class="ui" id="menu">
+  <div class="panel">
+    <h1>Wings of the Promise</h1>
+    <div class="sub">Fly the dove from the storm into the sunrise</div>
+    <div class="diffs" id="diffs"></div>
+    <button id="startBtn">Take flight</button>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" id="howBtn">How to play</button>
+      <button class="ghost" id="versesBtn">Verses</button>
+      <button class="ghost" id="soundBtn">🔊 Sound on</button>
+    </div>
+    <div class="foot" id="totals"></div>
+  </div>
+</div>
+
+<!-- HOW TO PLAY -->
+<div class="ui hidden" id="howUI">
+  <div class="panel">
+    <h2>How to play</h2>
+    <div class="how">
+      <b>Tap</b> anywhere or press <b>Space</b> to flap the dove's wings. Gravity is always pulling you toward the waters below.<br><br>
+      Glide through the gaps between the stone pillars — each pillar passed is <span class="g">+1 point</span>.<br><br>
+      🌿 Catch <b>olive branches</b> floating in the gaps for <span class="g">+2 points</span>. Catch them back-to-back to build an <b>olive streak</b>.<br><br>
+      📖 Every so often a <b>Scripture verse</b> unlocks and the journey enters a <b>new chapter</b> — the sky itself changes as the story moves from flood to promise.<br><br>
+      ⏸ Pause anytime with the button in the corner (or <b>Esc</b>).<br><br>
+      The flight is endless — the question is how far your wings of faith will carry you. Speed rises and gaps tighten the further you fly.
+    </div>
+    <button class="ghost" id="howBack">Back</button>
+  </div>
+</div>
+
+<!-- VERSES COLLECTION -->
+<div class="ui hidden" id="versesUI">
+  <div class="panel">
+    <h2>Verses gathered</h2>
+    <div class="sub" style="margin-top:-6px">Unlock them by flying farther</div>
+    <div class="vlist" id="vlist"></div>
+    <button class="ghost" id="versesBack">Back</button>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div class="ui hidden" id="pauseUI">
+  <div class="panel">
+    <h2>Resting on the wind</h2>
+    <div class="sub" style="margin-top:-4px">“Be still, and know that I am God.” — Ps 46:10</div>
+    <button id="resumeBtn">Resume</button><br>
+    <button class="ghost" id="restartBtn">Restart flight</button>
+    <button class="ghost" id="pauseMenuBtn">Main menu</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="ui hidden" id="over">
+  <div class="panel">
+    <div class="medal" id="medal">🕊️</div>
+    <div class="medal-l" id="medalLbl"></div>
+    <h1 style="font-size:clamp(26px,6.5vw,34px)">The dove returned</h1>
+    <div class="sub" id="overVerse"></div>
+    <div class="stats">
+      <div><span class="n" id="finalScore">0</span><span class="l">Score</span></div>
+      <div><span class="n" id="bestScore">0</span><span class="l">Best</span></div>
+      <div><span class="n" id="branchCount">0</span><span class="l">Branches</span></div>
+    </div>
+    <button id="againBtn">Fly again</button>
+    <button class="ghost" id="overMenuBtn">Main menu</button>
+  </div>
+</div>
+
+<script>
+(() => {
+/* ================= STORAGE (localStorage with in-memory fallback) ================= */
+const store={
+  ok:(()=>{try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return true}catch(e){return false}})(),
+  mem:{},
+  get(k,d){try{if(this.ok){const v=localStorage.getItem('wotp_'+k);return v==null?d:JSON.parse(v)}}catch(e){}return k in this.mem?this.mem[k]:d},
+  set(k,v){try{if(this.ok){localStorage.setItem('wotp_'+k,JSON.stringify(v));return}}catch(e){}this.mem[k]=v}
+};
+
+/* ================= CANVAS ================= */
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',resize);resize();
+function lerp(a,b,t){return a+(b-a)*t}
+function mix(c1,c2,t){return[lerp(c1[0],c2[0],t),lerp(c1[1],c2[1],t),lerp(c1[2],c2[2],t)]}
+function rgb(c){return`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`}
+
+/* ================= DIFFICULTIES (each with its own chapter palettes) ================= */
+const DIFFS={
+  easy:{name:'Peaceful Waters',desc:'Gentle winds, wide gaps. A calm first flight.',
+    dot:'linear-gradient(135deg,#8FD3C8,#CBAACB)',
+    speed:2.1,ramp:0.028,maxSpeed:4.6,gravMul:0.82,gap0:0.36,gapMin:0.27,branchRate:0.7,sway:0,
+    chapters:[
+      {n:'Still Waters', top:[110,160,170],bot:[205,190,200],sea:[80,140,150],pillar:[145,160,150]},
+      {n:'Lily Dawn',    top:[150,140,190],bot:[240,200,190],sea:[95,150,160],pillar:[160,150,160]},
+      {n:'Meadow Light', top:[130,180,200],bot:[250,235,190],sea:[100,165,170],pillar:[170,165,140]},
+      {n:'Garden Peace', top:[120,190,180],bot:[250,245,215],sea:[110,175,165],pillar:[175,175,150]}]},
+  normal:{name:'The Journey',desc:'The classic voyage — storm to sunrise.',
+    dot:'linear-gradient(135deg,#1B2440,#E8A87C)',
+    speed:2.6,ramp:0.045,maxSpeed:6.2,gravMul:1.0,gap0:0.30,gapMin:0.20,branchRate:0.55,sway:0,
+    chapters:[
+      {n:'The Storm',     top:[27,36,64],  bot:[63,76,110], sea:[42,68,96], pillar:[91,95,122]},
+      {n:'Waters Recede', top:[74,60,120], bot:[190,130,120],sea:[52,88,116],pillar:[120,105,110]},
+      {n:'First Light',   top:[90,90,150], bot:[232,168,124],sea:[60,110,143],pillar:[138,123,102]},
+      {n:'The Promise',   top:[104,150,196],bot:[252,224,150],sea:[80,140,170],pillar:[150,135,105]}]},
+  hard:{name:'Forty Days',desc:'Night storm. Fast winds, tight gaps, pillars that drift.',
+    dot:'linear-gradient(135deg,#0B0E1E,#5B2E6E)',
+    speed:3.1,ramp:0.06,maxSpeed:7.4,gravMul:1.12,gap0:0.27,gapMin:0.17,branchRate:0.45,sway:1,
+    chapters:[
+      {n:'Deep Night',    top:[8,10,26],  bot:[30,26,60],  sea:[16,24,48], pillar:[58,55,84]},
+      {n:'Thunder Watch', top:[24,14,50], bot:[70,40,90],  sea:[26,30,62], pillar:[70,60,95]},
+      {n:'Violet Vigil',  top:[46,26,86], bot:[120,70,110],sea:[40,40,80], pillar:[86,70,105]},
+      {n:'Morning Star',  top:[60,50,120],bot:[180,120,130],sea:[56,60,105],pillar:[105,90,110]}]}
+};
+let diffKey=store.get('lastDiff','normal');
+const CHAPTER_LEN=15; // points per chapter
+
+/* ================= VERSES ================= */
+const verses=[
+ [5 ,"He will cover you with His feathers","Psalm 91:4"],
+ [12,"The dove returned with an olive leaf","Genesis 8:11"],
+ [20,"They will soar on wings like eagles","Isaiah 40:31"],
+ [30,"I have set My rainbow in the clouds","Genesis 9:13"],
+ [45,"Faith as small as a mustard seed","Matthew 17:20"],
+ [60,"I can do all things through Christ","Philippians 4:13"],
+ [80,"Let your light shine before others","Matthew 5:16"],
+ [100,"Well done, good and faithful servant","Matthew 25:21"]];
+const overVerses=[
+ "“Hope does not put us to shame.” — Romans 5:5",
+ "“Rise, let us go.” — Mark 14:42",
+ "“His mercies are new every morning.” — Lam 3:23",
+ "“Be strong and courageous.” — Joshua 1:9"];
+let unlocked=new Set(store.get('verses',[]));
+
+/* ================= AUDIO ================= */
+let audioOn=store.get('sound',true),AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function tone(f,dur,type='sine',vol=0.12,delay=0){
+  if(!audioOn)return;const a=ac();if(!a)return;
+  const o=a.createOscillator(),g=a.createGain();
+  o.type=type;o.frequency.value=f;
+  g.gain.setValueAtTime(vol,a.currentTime+delay);
+  g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+delay+dur);
+  o.connect(g).connect(a.destination);o.start(a.currentTime+delay);o.stop(a.currentTime+delay+dur+0.05);
+}
+const sfx={
+  flap(){tone(340,0.09,'triangle',0.07)},
+  point(){tone(660,0.1,'sine',0.08)},
+  branch(){tone(784,0.12,'sine',0.1);tone(1175,0.14,'sine',0.08,0.06)},
+  verse(){[523,659,784].forEach((f,i)=>tone(f,0.5,'sine',0.07,i*0.09))},
+  hit(){tone(140,0.35,'sawtooth',0.12);tone(90,0.4,'sawtooth',0.1,0.05)}
+};
+
+/* ================= STATE ================= */
+const G={mode:'menu',t:0,score:0,branches:0,streak:0,speed:2.6,shake:0,verseIdx:0,chapter:0,pal:null,palT:null,lightning:0};
+const dove={x:0,y:0,vy:0,wing:0,r:16};
+let pillars=[],items=[],parts=[],clouds=[],stars=[],waveT=0,countT=0;
+const $=id=>document.getElementById(id);
+
+function D(){return DIFFS[diffKey]}
+function chapterPal(i){const ch=D().chapters;return ch[Math.min(i,ch.length-1)]}
+
+function reset(){
+  const d=D();
+  G.score=0;G.branches=0;G.streak=0;G.t=0;G.verseIdx=0;G.shake=0;G.chapter=0;G.lightning=0;
+  G.speed=d.speed;
+  const p0=chapterPal(0);
+  G.pal={top:[...p0.top],bot:[...p0.bot],sea:[...p0.sea],pillar:[...p0.pillar]};
+  dove.x=W*0.28;dove.y=H*0.42;dove.vy=0;dove.wing=0;
+  pillars=[];items=[];parts=[];
+  clouds=Array.from({length:7},()=>({x:Math.random()*W,y:Math.random()*H*0.5,s:0.4+Math.random()*0.9,w:80+Math.random()*140}));
+  stars=Array.from({length:40},()=>({x:Math.random()*W,y:Math.random()*H*0.6,r:Math.random()*1.4+0.4,tw:Math.random()*6.28}));
+  spawnPillar(W+140);
+  $('chapterLbl').textContent='Ch. I — '+p0.n;
+}
+function spawnPillar(x){
+  const d=D();
+  const gap=Math.max(H*d.gap0 - G.score*(H*0.0022), H*d.gapMin);
+  const cy=H*0.20+Math.random()*(H*0.48);
+  pillars.push({x,cy,cy0:cy,gap,passed:false,w:64,ph:Math.random()*6.28});
+  if(Math.random()<d.branchRate) items.push({x:x+32,y:cy+(Math.random()*gap*0.5-gap*0.25),got:false,a:Math.random()*6});
+}
+
+/* ================= INPUT ================= */
+function flap(){
+  if(G.mode!=='playing')return;
+  dove.vy=-Math.min(8.4,H*0.011);dove.wing=1;sfx.flap();
+}
+addEventListener('pointerdown',e=>{
+  if(e.target.closest('button')||e.target.closest('.panel'))return;
+  flap();
+});
+addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();flap();}
+  if(e.code==='Escape'&&G.mode==='playing')pause();
+});
+
+/* ================= UI FLOW ================= */
+function show(ids){['menu','howUI','versesUI','pauseUI','over','hud','pauseBtn','count'].forEach(i=>$(i).classList.toggle('hidden',!ids.includes(i)))}
+
+function buildMenu(){
+  const el=$('diffs');el.innerHTML='';
+  for(const k of['easy','normal','hard']){
+    const d=DIFFS[k],best=store.get('best_'+k,0);
+    const div=document.createElement('div');
+    div.className='diff'+(k===diffKey?' sel':'');
+    div.innerHTML=`<div class="dot" style="background:${d.dot}"></div>
+      <div><div class="t">${d.name}</div><div class="d">${d.desc}</div></div>
+      <div class="b">${best}<small>best</small></div>`;
+    div.onclick=()=>{diffKey=k;store.set('lastDiff',k);buildMenu()};
+    el.appendChild(div);
+  }
+  const plays=store.get('plays',0),tb=store.get('totalBranches',0);
+  $('totals').textContent=`${plays} flights · ${tb} branches gathered · ${unlocked.size}/${verses.length} verses`
+    +(store.ok?'':' · (progress saves for this session only here — open the file in your browser for permanent saves)');
+  $('soundBtn').textContent=audioOn?'🔊 Sound on':'🔇 Sound off';
+}
+function buildVerses(){
+  const el=$('vlist');el.innerHTML='';
+  for(const[s,line,ref]of verses){
+    const has=unlocked.has(ref);
+    el.innerHTML+=`<div class="v${has?'':' lock'}">${has?'“'+line+'”':'Locked — reach '+s+' points'}<br><span class="r">${has?ref:'???'}</span></div>`;
+  }
+}
+
+$('startBtn').onclick=()=>start();
+$('againBtn').onclick=()=>start();
+$('howBtn').onclick=()=>{show(['howUI'])};
+$('howBack').onclick=()=>{buildMenu();show(['menu'])};
+$('versesBtn').onclick=()=>{buildVerses();show(['versesUI'])};
+$('versesBack').onclick=()=>{buildMenu();show(['menu'])};
+$('soundBtn').onclick=()=>{audioOn=!audioOn;store.set('sound',audioOn);buildMenu()};
+$('pauseBtn').onclick=()=>pause();
+$('resumeBtn').onclick=()=>resumeCountdown();
+$('restartBtn').onclick=()=>start();
+$('pauseMenuBtn').onclick=()=>{G.mode='menu';buildMenu();show(['menu'])};
+$('overMenuBtn').onclick=()=>{G.mode='menu';buildMenu();show(['menu'])};
+
+function start(){
+  if(ac()&&AC.state==='suspended')AC.resume();
+  reset();G.mode='playing';
+  $('score').textContent='0';
+  show(['hud','pauseBtn']);
+}
+function pause(){G.mode='paused';show(['pauseUI','hud'])}
+function resumeCountdown(){
+  G.mode='countdown';countT=3;show(['hud','pauseBtn','count']);
+  $('countNum').textContent='3';
+}
+function gameOver(){
+  G.mode='over';G.shake=14;sfx.hit();
+  const bk='best_'+diffKey,best=Math.max(store.get(bk,0),G.score);
+  store.set(bk,best);
+  store.set('plays',store.get('plays',0)+1);
+  store.set('totalBranches',store.get('totalBranches',0)+G.branches);
+  store.set('verses',[...unlocked]);
+  $('finalScore').textContent=G.score;$('bestScore').textContent=best;$('branchCount').textContent=G.branches;
+  $('overVerse').textContent=overVerses[(Math.random()*overVerses.length)|0];
+  let m='🕊️',ml='Keep flying';
+  if(G.score>=40){m='🥇';ml='Golden Dove'}else if(G.score>=20){m='🥈';ml='Silver Dove'}else if(G.score>=10){m='🥉';ml='Bronze Dove'}
+  $('medal').textContent=m;$('medalLbl').textContent=ml;
+  setTimeout(()=>show(['over']),450);
+}
+
+/* ================= VERSE BANNER ================= */
+let verseTimer=null;
+function showVerse(line,ref){
+  $('verseLine').textContent='“'+line+'”';$('verseRef').textContent=ref;
+  const v=$('verse');v.classList.add('show');sfx.verse();
+  clearTimeout(verseTimer);verseTimer=setTimeout(()=>v.classList.remove('show'),2800);
+}
+function burst(x,y,color,n=14){
+  for(let i=0;i<n;i++){const a=Math.random()*6.28,s=1+Math.random()*3;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,life:1,color})}
+}
+
+/* ================= UPDATE ================= */
+function update(dt){
+  waveT+=dt;
+  clouds.forEach(c=>{c.x-=G.speed*0.25*c.s;if(c.x<-c.w*2)c.x=W+c.w});
+
+  if(G.mode==='countdown'){
+    countT-=dt;
+    $('countNum').textContent=Math.max(1,Math.ceil(countT));
+    if(countT<=0){G.mode='playing';show(['hud','pauseBtn'])}
+    return;
+  }
+  if(G.mode!=='playing')return;
+  const d=D();
+  G.t+=dt;
+  G.speed=Math.min(d.speed+G.score*d.ramp,d.maxSpeed)*(W/420>1?1:Math.max(W/420,0.8));
+
+  // palette drift toward current chapter
+  const tgt=chapterPal(G.chapter),k=Math.min(1,dt*0.8);
+  for(const key of['top','bot','sea','pillar'])G.pal[key]=mix(G.pal[key],tgt[key],k);
+
+  // hard mode lightning flicker
+  if(d.sway&&Math.random()<dt*0.15)G.lightning=0.5;
+  G.lightning=Math.max(0,G.lightning-dt*2.5);
+
+  dove.vy+=H*0.00075*60*dt*d.gravMul;dove.vy=Math.min(dove.vy,11);
+  dove.y+=dove.vy*60*dt;dove.wing=Math.max(0,dove.wing-dt*4);
+
+  const last=pillars[pillars.length-1];
+  if(last&&last.x<W-Math.max(210,W*0.42))spawnPillar(W+80);
+
+  for(const p of pillars){
+    p.x-=G.speed*60*dt;
+    if(d.sway){p.ph+=dt;p.cy=p.cy0+Math.sin(p.ph*1.4)*H*0.035}
+    if(!p.passed&&p.x+p.w<dove.x){
+      p.passed=true;G.score++;$('score').textContent=G.score;sfx.point();
+      // chapter transitions
+      const ch=Math.min(Math.floor(G.score/CHAPTER_LEN),D().chapters.length-1);
+      if(ch!==G.chapter){G.chapter=ch;const cp=chapterPal(ch);
+        $('chapterLbl').textContent='Ch. '+['I','II','III','IV'][ch]+' — '+cp.n;
+        showVerse('The journey enters a new chapter',cp.n)}
+      const v=verses[G.verseIdx];
+      if(v&&G.score>=v[0]){showVerse(v[1],v[2]);unlocked.add(v[2]);store.set('verses',[...unlocked]);G.verseIdx++}
+    }
+    if(dove.x+dove.r*0.7>p.x&&dove.x-dove.r*0.7<p.x+p.w){
+      if(dove.y-dove.r*0.6<p.cy-p.gap/2||dove.y+dove.r*0.6>p.cy+p.gap/2){burst(dove.x,dove.y,'#FDF6E3',22);gameOver()}
+    }
+  }
+  pillars=pillars.filter(p=>p.x>-120);
+
+  for(const it of items){
+    it.x-=G.speed*60*dt;it.a+=dt*3;
+    if(!it.got&&Math.hypot(it.x-dove.x,it.y-dove.y)<26){
+      it.got=true;G.branches++;G.streak++;G.score+=2;$('score').textContent=G.score;
+      burst(it.x,it.y,'#A6C15A',16);sfx.branch();
+      if(G.streak>=2){const st=$('streak');st.textContent='olive streak ×'+G.streak;st.style.opacity=1;setTimeout(()=>st.style.opacity=0,1200)}
+    }
+  }
+  if(items.some(i=>!i.got&&i.x<dove.x-40))G.streak=0;
+  items=items.filter(i=>i.x>-40&&!i.got);
+
+  const seaY=H-Math.max(46,H*0.08);
+  if(dove.y>seaY-6){burst(dove.x,seaY,'#9fc4d8',20);gameOver()}
+  if(dove.y<-30){dove.y=-30;dove.vy=0}
+
+  parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.12;p.life-=dt*1.6});
+  parts=parts.filter(p=>p.life>0);
+  G.shake=Math.max(0,G.shake-dt*40);
+}
+
+/* ================= DRAW ================= */
+function drawCloud(x,y,w,alpha){
+  ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle='#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(x,y,w*0.5,w*0.18,0,0,6.28);
+  ctx.ellipse(x-w*0.28,y+4,w*0.3,w*0.13,0,0,6.28);
+  ctx.ellipse(x+w*0.3,y+3,w*0.32,w*0.14,0,0,6.28);
+  ctx.fill();ctx.restore();
+}
+function drawPillar(p){
+  const pc=G.pal.pillar;
+  const g=ctx.createLinearGradient(p.x,0,p.x+p.w,0);
+  g.addColorStop(0,rgb(mix(pc,[0,0,0],0.35)));g.addColorStop(0.5,rgb(pc));g.addColorStop(1,rgb(mix(pc,[0,0,0],0.45)));
+  const topH=p.cy-p.gap/2,botY=p.cy+p.gap/2;
+  ctx.fillStyle=g;
+  ctx.fillRect(p.x,0,p.w,topH);
+  ctx.fillRect(p.x,botY,p.w,H-botY);
+  ctx.fillStyle='rgba(242,201,76,.85)';
+  ctx.fillRect(p.x-6,topH-12,p.w+12,12);
+  ctx.fillRect(p.x-6,botY,p.w+12,12);
+  ctx.strokeStyle='rgba(0,0,0,.18)';ctx.lineWidth=2;
+  for(let i=1;i<4;i++){const lx=p.x+p.w*i/4;
+    ctx.beginPath();ctx.moveTo(lx,0);ctx.lineTo(lx,topH-12);ctx.moveTo(lx,botY+12);ctx.lineTo(lx,H);ctx.stroke()}
+}
+function drawBranch(it){
+  ctx.save();ctx.translate(it.x,it.y+Math.sin(it.a)*4);ctx.rotate(Math.sin(it.a*0.7)*0.2);
+  ctx.strokeStyle='#6B7A3D';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-10,6);ctx.quadraticCurveTo(0,-2,12,-6);ctx.stroke();
+  ctx.fillStyle='#A6C15A';
+  for(const[lx,ly,r]of[[-4,1,5],[3,-3,5],[10,-6,4.5]]){ctx.beginPath();ctx.ellipse(lx,ly,r,r*0.45,-0.5,0,6.28);ctx.fill()}
+  ctx.fillStyle='rgba(255,255,200,.35)';ctx.beginPath();ctx.arc(0,0,16,0,6.28);ctx.fill();
+  ctx.restore();
+}
+function drawDove(){
+  const tilt=Math.max(-0.5,Math.min(0.7,dove.vy*0.06));
+  ctx.save();ctx.translate(dove.x,dove.y);ctx.rotate(tilt);
+  ctx.fillStyle='#FDF6E3';
+  ctx.beginPath();ctx.ellipse(0,0,17,11,0,0,6.28);ctx.fill();
+  ctx.beginPath();ctx.moveTo(-14,-2);ctx.lineTo(-26,-7);ctx.lineTo(-24,2);ctx.lineTo(-26,9);ctx.lineTo(-13,4);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.arc(13,-6,7,0,6.28);ctx.fill();
+  ctx.fillStyle='#E8A87C';ctx.beginPath();ctx.moveTo(19,-7);ctx.lineTo(26,-5);ctx.lineTo(19,-3);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#1B2440';ctx.beginPath();ctx.arc(15,-7,1.6,0,6.28);ctx.fill();
+  const w=dove.wing,wingY=lerp(6,-14,w);
+  ctx.fillStyle='#F1E6C8';
+  ctx.beginPath();ctx.moveTo(-4,-2);
+  ctx.quadraticCurveTo(-2,wingY-6,14,wingY);
+  ctx.quadraticCurveTo(2,Math.max(wingY+8,2),-6,4);ctx.closePath();ctx.fill();
+  ctx.restore();
+}
+function render(){
+  if(!G.pal){const p0=chapterPal(0);G.pal={top:[...p0.top],bot:[...p0.bot],sea:[...p0.sea],pillar:[...p0.pillar]}}
+  const sh=G.shake?(Math.random()-0.5)*G.shake:0;
+  ctx.save();ctx.translate(sh,sh*0.6);
+
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,rgb(G.pal.top));sky.addColorStop(1,rgb(G.pal.bot));
+  ctx.fillStyle=sky;ctx.fillRect(-20,-20,W+40,H+40);
+
+  // stars on hard / dark palettes
+  if(diffKey==='hard'){
+    ctx.fillStyle='#fff';
+    for(const s of stars){ctx.globalAlpha=0.3+0.5*Math.abs(Math.sin(waveT*1.5+s.tw));
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.28);ctx.fill()}
+    ctx.globalAlpha=1;
+  }
+  // lightning flash
+  if(G.lightning>0){ctx.fillStyle=`rgba(230,230,255,${G.lightning*0.35})`;ctx.fillRect(-20,-20,W+40,H+40)}
+
+  // sun rising with chapter progress
+  const prog=Math.min(1,(G.chapter+((G.score%CHAPTER_LEN)/CHAPTER_LEN))/D().chapters.length);
+  const sunY=lerp(H*1.15,H*0.3,prog);
+  const sg=ctx.createRadialGradient(W*0.75,sunY,10,W*0.75,sunY,H*0.5);
+  sg.addColorStop(0,'rgba(255,230,150,.9)');sg.addColorStop(0.15,'rgba(255,215,120,.5)');sg.addColorStop(1,'rgba(255,215,120,0)');
+  ctx.fillStyle=sg;ctx.fillRect(-20,-20,W+40,H+40);
+
+  if(G.chapter>=2){
+    ctx.save();ctx.globalAlpha=Math.min(0.5,(G.chapter-1)*0.25);
+    ['#E05656','#E89A4B','#F2C94C','#7A8B4F','#5B84B1','#7A5BAA'].forEach((c,i)=>{
+      ctx.strokeStyle=c;ctx.lineWidth=7;
+      ctx.beginPath();ctx.arc(W*0.5,H*1.05,H*0.75+i*8,Math.PI*1.05,Math.PI*1.95);ctx.stroke()});
+    ctx.restore();
+  }
+
+  clouds.forEach(c=>drawCloud(c.x,c.y,c.w,0.10+0.12*c.s));
+
+  const seaY=H-Math.max(46,H*0.08);
+  ctx.save();ctx.globalAlpha=0.5;ctx.fillStyle='rgba(30,26,40,.9)';
+  const ax=((G.t*-8)%(W+400))+W+200,ay=seaY-6;
+  ctx.beginPath();ctx.moveTo(ax-60,ay);ctx.quadraticCurveTo(ax,ay+24,ax+60,ay);
+  ctx.lineTo(ax+44,ay-18);ctx.lineTo(ax-44,ay-18);ctx.closePath();ctx.fill();
+  ctx.fillRect(ax-24,ay-30,48,14);
+  ctx.restore();
+
+  pillars.forEach(drawPillar);
+  items.forEach(drawBranch);
+
+  const wg=ctx.createLinearGradient(0,seaY,0,H);
+  wg.addColorStop(0,rgb(G.pal.sea));wg.addColorStop(1,rgb(mix(G.pal.sea,[0,0,0],0.55)));
+  ctx.fillStyle=wg;
+  ctx.beginPath();ctx.moveTo(-20,H+20);ctx.lineTo(-20,seaY);
+  for(let x=0;x<=W+20;x+=14)ctx.lineTo(x,seaY+Math.sin(x*0.03+waveT*2.2)*4+Math.sin(x*0.011-waveT)*3);
+  ctx.lineTo(W+20,H+20);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=1.5;
+  ctx.beginPath();for(let x=0;x<=W;x+=14){const y=seaY+Math.sin(x*0.03+waveT*2.2)*4+Math.sin(x*0.011-waveT)*3;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y)}ctx.stroke();
+
+  if(G.mode!=='menu')drawDove();
+
+  parts.forEach(p=>{ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,3*p.life+1,0,6.28);ctx.fill()});
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+/* ================= LOOP ================= */
+let lastT=performance.now();
+function loop(now){
+  const dt=Math.min(0.033,(now-lastT)/1000);lastT=now;
+  update(dt);render();requestAnimationFrame(loop);
+}
+buildMenu();reset();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
